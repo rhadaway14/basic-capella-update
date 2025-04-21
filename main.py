@@ -36,9 +36,12 @@ expiration_datetime = datetime.datetime.fromtimestamp(NEW_TTL_UNIX, datetime.UTC
 ttl_delta = expiration_datetime - now_utc
 
 # update
-collection.upsert(KEY, doc, UpsertOptions(expiry=ttl_delta))
-print(f"Updated TTL to expire in {ttl_delta.total_seconds():.0f} seconds")
-print(f"    → Expires at: {expiration_datetime} UTC")
+if ttl_delta.total_seconds() <= 0:
+    collection.remove(KEY)
+else:
+    collection.upsert(KEY, doc, UpsertOptions(expiry=ttl_delta))
+    print(f"Updated TTL to expire in {ttl_delta.total_seconds():.0f} seconds")
+    print(f"    → Expires at: {expiration_datetime} UTC")
 
 
 # get doc after
