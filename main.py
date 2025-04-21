@@ -1,18 +1,21 @@
 import datetime
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
-from couchbase.options import (ClusterOptions, ClusterTimeoutOptions,
-                               UpsertOptions, GetOptions)
+from couchbase.options import (
+    ClusterOptions,
+    UpsertOptions,
+    GetOptions
+)
 
-# config
 CAPELLA_ENDPOINT = "couchbases://cb.zzi6wn-sltowod4b.cloud.couchbase.com"
-PASSWORD = "Password1!"
 USERNAME = "admin"
+PASSWORD = "Password1!"
 BUCKET = "test"
 SCOPE = "test"
 COLLECTION = "test"
+KEY = "101"
+NEW_TTL_UNIX = 1751328000
 
-print(COLLECTION)
 
 # connect
 cluster = Cluster(CAPELLA_ENDPOINT, ClusterOptions(PasswordAuthenticator(USERNAME, PASSWORD)))
@@ -21,15 +24,28 @@ collection = bucket.scope(SCOPE).collection(COLLECTION)
 print(collection)
 
 # get doc before
-before = collection.get("101", GetOptions(with_expiry=True))
-print(before.content_as[dict])
+before = collection.get(KEY, GetOptions(with_expiry=True))
+doc = before.content_as[dict]
+print(doc)
 print("ttl:", before.expiry_time)
 
-new_ttl_seconds = 600
-collection.upsert("101", before.content_as[dict], UpsertOptions(expiry=datetime.timedelta(seconds=new_ttl_seconds)))
-print(f"Updated TTL to {new_ttl_seconds} seconds")
+
+# edit time
+now_utc = datetime.datetime.now(datetime.UTC)
+expiration_datetime = datetime.datetime.fromtimestamp(NEW_TTL_UNIX, datetime.UTC)
+ttl_delta = expiration_datetime - now_utc
+
+# update
+collection.upsert(KEY, doc, UpsertOptions(expiry=ttl_delta))
+print(f"Updated TTL to expire in {ttl_delta.total_seconds():.0f} seconds")
+print(f"    → Expires at: {expiration_datetime} UTC")
+
 
 # get doc after
-before = collection.get("101", GetOptions(with_expiry=True))
-print(before.content_as[dict])
-print("ttl:", before.expiry_time)
+after = collection.get(KEY, GetOptions(with_expiry=True))
+print("Updated document content:", after.content_as[dict])
+print("Updated TTL (expiration time):", after.expiry_time)
+
+
+
+
