@@ -18,8 +18,15 @@ COLLECTION = "test"
 # KEY = "101"
 # NEW_TTL_UNIX = 1751328000
 
+DELETED = []
+UPDATED = []
+NOTFOUND = []
+
 
 def update_ttl(key, exp):
+    global DELETED
+    global UPDATED
+    global NOTFOUND
     try:
         # connect
         cluster = Cluster(CAPELLA_ENDPOINT, ClusterOptions(PasswordAuthenticator(USERNAME, PASSWORD)))
@@ -39,8 +46,11 @@ def update_ttl(key, exp):
         ttl_delta = expiration_datetime - now_utc
 
         # update
+
         if ttl_delta.total_seconds() <= 0:
             collection.remove(key)
+            DELETED.append(key)
+
         else:
             collection.upsert(key, doc, UpsertOptions(expiry=ttl_delta))
             print(f"Updated TTL to expire in {ttl_delta.total_seconds():.0f} seconds")
@@ -50,8 +60,10 @@ def update_ttl(key, exp):
             after = collection.get(key, GetOptions(with_expiry=True))
             print("Updated document content:", after.content_as[dict])
             print("Updated TTL (expiration time):", after.expiry_time)
+            UPDATED.append(key)
     except DocumentNotFoundException:
         print("not found")
+        NOTFOUND.append(key)
 
 
 with open("expiration_tsky-all.json", "r") as f:
@@ -61,6 +73,10 @@ for item in content["rows"]:
     print(item["key"])
     print(item["value"])
     update_ttl(item["key"], item["value"])
+
+print("DELETED:", DELETED)
+print("UPDATED:", UPDATED)
+print("NOTFOUND", NOTFOUND)
 
 
 
